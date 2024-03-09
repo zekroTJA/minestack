@@ -1,0 +1,19 @@
+http:
+  routers:
+    https-redirect:
+      rule: "HostRegexp(`{any:.*}`)"
+      middlewares: ["https-redirect"]
+      service: "noop"
+      entryPoints: ["http"]
+
+  middlewares:
+    https-redirect:
+      redirectScheme:
+        scheme: "https"
+        permanent: true
+
+  services:
+    noop:
+      loadBalancer:
+        servers:
+          - url: ""

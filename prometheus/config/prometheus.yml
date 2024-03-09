@@ -1,0 +1,7 @@
+global:
+  scrape_interval: 30s
+
+scrape_configs:
+  - job_name: spigot
+    static_configs:
+      - targets: ["spigot:9940"]
