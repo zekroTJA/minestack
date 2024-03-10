@@ -2,6 +2,8 @@
 
 minestack is a very simple [Docker Compose](https://docs.docker.com/compose/) stack to quickly spin up a [spigot](https://www.spigotmc.org/) Minecraft server with [BlueMap](https://bluemap.bluecolored.de/), [Portainer](https://www.portainer.io/) and [Grafana](https://grafana.com/).
 
+This project is based of my [spigot autobuild](https://github.com/zekrotja/spigot-autobuild) Docker image, which also supports fully automatic backups of your server.
+
 ## Prerequisite
 
 - You need a server which is capable of running a Minecraft server. This could be a home server, a VPS or - in the best case - a root server.
@@ -10,6 +12,7 @@ minestack is a very simple [Docker Compose](https://docs.docker.com/compose/) st
   - `git` _(should be installed by default on most distros)_
   - `ssh` _(should be installed by default on most distros)_
   - `dig` _(should be installed by default on most distros)_
+  - `sudo` _(should be installed by default on most distros)_
   - `docker`
   - `curl`
   - `jq`

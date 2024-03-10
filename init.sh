@@ -78,6 +78,28 @@ check_domain_binding() {
     fi
 }
 
+insert_backup_cronjob() {
+    if ! [ -d "/etc/cron.d" ]; then
+        error "path /etc/cron.d does not exist? Is cron properly installed on your system?"
+        exit 1
+    fi
+
+    output_dir="/etc/cron.d/minecraft-server"
+
+    echo "⚠️  Creating the crontab entry for the root user requires sudo permissions!"
+    container_name="${PWD##*/}-spigot"
+    {
+        echo " 0 7 * * * docker exec $container_name rcon 'say ATTENTION: Server will restart in one hour!'"
+        echo "30 7 * * * docker exec $container_name rcon 'say ATTENTION: Server will restart in 30 minutes!'"
+        echo "50 7 * * * docker exec $container_name rcon 'say ATTENTION: Server will restart in 10 minutes!'"
+        echo "55 7 * * * docker exec $container_name rcon 'say ATTENTION: Server will restart in 5 minutes!'"
+        echo "59 7 * * * docker exec $container_name rcon 'say ATTENTION: Server will restart in one minutes!'"
+        echo " 0 8 * * * docker exec $container_name rcon 'stop'"
+    } | sudo tee "$output_dir"
+
+    echo -e "\n${C_GREEN}Restart crontab entry has been created (${F_ITALIC}${output_dir}${F_RESET}${C_GREEN}).${F_RESET}"
+}
+
 error() {
     echo -e "${C_RED}${F_BOLD}error:${F_RESET} $1"
 }
@@ -89,6 +111,7 @@ which curl > /dev/null 2>&1 || missing+=("docker")
 which curl > /dev/null 2>&1 || missing+=("curl")
 which jq > /dev/null 2>&1 || missing+=("jq")
 which dig > /dev/null 2>&1 || missing+=("dig")
+which sudo > /dev/null 2>&1 || missing+=("sudo")
 if [ -n "$missing" ]; then
     error "The following tools are missing on your system:"
     for t in ${missing[*]}; do
@@ -133,7 +156,15 @@ set -- $(curl -Ls https://api.github.com/repos/sladkoff/minecraft-prometheus-exp
     | jq -r '[ .[] | select ( .prerelease == false ) ][0].assets[] | select ( .name | endswith (".jar") ) | .browser_download_url + " " + .name')
 curl -Lso "spigot/plugins/$2" "$1"
 
-echo -e "\n${C_GREY}(3)${F_RESET} Do you want to start the stack now ${F_RESET} ${F_ITALIC}(Y/n)${F_RESET}?"
+echo -e "\n${C_GREY}(3)${F_RESET} Do you want to enable ${F_BOLT}${C_PINK}automatic restarts${F_RESET}? ${F_ITALIC}(Y/n)${F_RESET}"
+echo -e "⚠️  This is required to perform automatic backups, because backups can only be created on server startup."
+read yn
+case "$yn" in
+    "n"|"N"|"no") echo -e "Automatic backups are not enabled." ;;
+    *) insert_backup_cronjob ;;
+esac
+
+echo -e "\n${C_GREY}(4)${F_RESET} Do you want to start the stack now ${F_RESET}? ${F_ITALIC}(Y/n)${F_RESET}"
 read yn
 case "$yn" in
     "n"|"N"|"no")
