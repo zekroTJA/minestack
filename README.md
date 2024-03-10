@@ -9,6 +9,7 @@ minestack is a very simple [Docker Compose](https://docs.docker.com/compose/) st
 - You need the following tools installed on your server.
   - `git` _(should be installed by default on most distros)_
   - `ssh` _(should be installed by default on most distros)_
+  - `dig` _(should be installed by default on most distros)_
   - `docker`
   - `curl`
   - `jq`

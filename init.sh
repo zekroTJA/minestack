@@ -88,6 +88,7 @@ missing=()
 which curl > /dev/null 2>&1 || missing+=("docker")
 which curl > /dev/null 2>&1 || missing+=("curl")
 which jq > /dev/null 2>&1 || missing+=("jq")
+which dig > /dev/null 2>&1 || missing+=("dig")
 if [ -n "$missing" ]; then
     error "The following tools are missing on your system:"
     for t in ${missing[*]}; do
