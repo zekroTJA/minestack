@@ -1,25 +1,85 @@
 #!/bin/bash
 
+C_RED="\033[38;5;203m"
+C_CYAN="\033[38;5;87m"
+C_PINK="\033[38;5;199m"
+C_GREEN="\033[38;5;48m"
+C_ORANGE="\033[38;5;214m"
+C_GREY="\033[38;5;246m"
+F_BOLD="\033[1m"
+F_ITALIC="\033[3m"
+F_UNDERLINE="\033[4m"
+F_RESET="\033[0m"
+
+# -------------------------------------------------------------------------
+
 setup_rclone_config() {
-    echo "Following, the rclone configuration wizzard will open where you can add a new remote configuration for your backup archives."
-    echo ""
-    echo "In the wizzard, enter 'e' to create a new config with the name 'minecraft' (this is important!)"
-    echo "After that, choose the storage type and continue the setup process."
-    echo ""
-    echo "If you need help, please refer to the rclone documentation:"
-    echo "https://rclone.org/commands/rclone_config"
-    echo ""
-    echo "Press ENTER to continue ..."
+    echo -e "Following, the rclone configuration wizzard will open where you can add a new remote configuration for your backup archives."
+    echo -e ""
+    echo -e "⚠️ In the wizzard, enter ${F_BOLD}${F_ITALIC}${C_PINK}'e'${F_RESET} to create a new config with the name ${F_BOLD}${F_ITALIC}${C_PINK}'minecraft'${F_RESET} (this is important!)"
+    echo -e "After that, choose the storage type and continue the setup process."
+    echo -e ""
+    echo -e "If you need help, please refer to the rclone documentation:"
+    echo -e "https://rclone.org/commands/rclone_config"
+    echo -e ""
+    echo -e "${F_ITALIC}Press ENTER to continue ...${F_RESET}"
     read
 
-    mkdir rclone
+    if ! [ -d "rclone" ]; then
+        mkdir rclone
+    fi
     docker run \
         --rm -it -v "$PWD/rclone:/config/rclone" -u "$(id -u)" rclone/rclone:latest \
             config
 
+    if ! grep '^\[minecraft\]$' rclone/rclone.conf > /dev/null 2>&1; then
+        error "Could not find a config for ${F_BOLD}${C_PINK}'minecraft'${F_RESET} in the created rclone.conf."
+        exit 1
+    fi
+
     sed -i '1s#^#secrets:\n  minecraftrclone:\n    file: rclone/rclone.conf\n\n#' docker-compose.yml
     sed -i 's#PRE_START_BACKUP: "false"#PRE_START_BACKUP: "true"#' docker-compose.yml
     sed -i '#secrets: \[\]#secrets:\n      - source: minecraftrclone\n        target: rcloneconfig#' docker-compose.yml
+}
+
+check_domain_binding() {
+    domains=("$@")
+
+    set -- $(hostname -I)
+    myip="$1"
+
+    erroneous=()
+    for domain in "${domains[@]}"; do
+        resolved=$(dig +short "$domain" | tail -n1)
+        if [ "$resolved" != "$myip" ]; then
+            if [ -z "$resolved" ]; then
+                erroneous+=("$domain -> ${C_GREY}unset${F_RESET}")
+            else
+                erroneous+=("$domain -> ${C_RED}${resolved}${F_RESET}")
+            fi
+        fi
+    done
+
+    if [ -n "$erroneous" ]; then
+        echo -e "\n${F_BOLD}${C_ORANGE}warning:${F_RESET} some domains don't bind to this servers IP address ${F_ITALIC}${C_CYAN}($myip)${F_RESET}:"
+        for err in "${erroneous[@]}"; do
+            echo -e "  - $err"
+        done
+
+        echo -e "\nDo you want to continue anyway? ${F_ITALIC}(y/N)${F_RESET}"
+        echo -e "⚠️  Continuing with unset domain values can result in issues when issuing the TLS certificates for the public websites on startup."
+        read yn
+        case "$yn" in
+            "y"|"Y"|"yes") ;;
+            *) exit 1 ;;
+        esac
+    else
+        echo -e "\n${C_GREEN}All domains DNS entries are correctly configured!${F_RESET}"
+    fi
+}
+
+error() {
+    echo -e "${C_RED}${F_BOLD}error:${F_RESET} $1"
 }
 
 # -------------------------------------------------------------------------
@@ -29,33 +89,35 @@ which curl > /dev/null 2>&1 || missing+=("docker")
 which curl > /dev/null 2>&1 || missing+=("curl")
 which jq > /dev/null 2>&1 || missing+=("jq")
 if [ -n "$missing" ]; then
-    echo "error: The following tools are missing on your system:"
+    error "The following tools are missing on your system:"
     for t in ${missing[*]}; do
-        echo "  - $t"
+        echo -e "  - $t"
     done
-    echo ""
-    echo "Please install them and re-start the script."
+    echo -e ""
+    echo -e "Please install them and re-start the script."
     exit 1
 fi
 
 set -e
 
-echo "Heyo! This script will lead you though the necessary steps to set up your Minecraft server!"
+echo -e "${F_BOLD}${C_CYAN}Heyo! 👋 This script will lead you though the necessary steps to set up your Minecraft server!${F_RESET} 🚀"
 
-echo -e "\n(1) Please enter the domain of your server (i.e. 'mc.example.com'):"
+echo -e "\n${C_GREY}(1)${F_RESET} Please enter the ${F_BOLD}${C_PINK}domain${F_RESET} of your server ${F_ITALIC}(i.e. 'mc.example.com')${F_RESET}:"
 read domain
 
 if [ -z "$domain" ]; then
-    echo "error: Value for domain can not be empty!"
+    error "Value for domain can not be empty!"
     exit 1
 fi
 
-echo "ROOT_DOMAIN=$domain" > ".env"
+check_domain_binding "$domain" "docker.$domain" "grafana.$domain"
 
-echo -e "\n(2) Do you want to enable automatic backups (Y/n)?"
+echo -e "ROOT_DOMAIN=$domain" > ".env"
+
+echo -e "\n${C_GREY}(2)${F_RESET} Do you want to enable ${F_BOLT}${C_PINK}automatic backups${F_RESET}? ${F_ITALIC}(Y/n)${F_RESET}"
 read yn
 case "$yn" in
-    "n"|"N"|"no") echo "Automatic backups are not enabled." ;;
+    "n"|"N"|"no") echo -e "Automatic backups are not enabled." ;;
     *) setup_rclone_config ;;
 esac
 
@@ -70,22 +132,22 @@ set -- $(curl -Ls https://api.github.com/repos/sladkoff/minecraft-prometheus-exp
     | jq -r '[ .[] | select ( .prerelease == false ) ][0].assets[] | select ( .name | endswith (".jar") ) | .browser_download_url + " " + .name')
 curl -Lso "spigot/plugins/$2" "$1"
 
-echo -e "\n(3) Do you want to start the stack now (Y/n)?"
+echo -e "\n${C_GREY}(3)${F_RESET} Do you want to start the stack now ${F_RESET} ${F_ITALIC}(Y/n)${F_RESET}?"
 read yn
 case "$yn" in
     "n"|"N"|"no")
-        echo "Setup finished."
-        echo "You can start the stack at any time with 'docker compose up -d'! ;)"
+        echo -e "${C_GREEN}Setup finished!${F_RESET}"
+        echo -e "You can start the stack at any time with ${F_ITALIC}'docker compose up -d'${F_RESET}! ;)"
         ;;
     *)
         docker compose up -d
-        echo "Stack has been started!"
-        echo ""
-        echo "Next steps:"
-        echo "  - Check stack status with 'docker compose ps' and 'docker compose logs'."
-        echo "  - Go to https://docker.$domain to configure Portainer."
-        echo "  - Go to https://$domain to check your BlueMap (when the server has finished building)."
-        echo "  - Connect to your server via $domain."
-        echo "  - Have fun! :)"
+        echo -e "${C_GREEN}Stack has been started!${F_RESET}"
+        echo -e ""
+        echo -e "Next steps:"
+        echo -e "  - Check stack status with ${F_ITALIC}'docker compose ps'${F_RESET} and ${F_ITALIC}'docker compose logs'${F_RESET}."
+        echo -e "  - Go to ${F_UNERLINE}${C_CYAN}https://docker.$domain${F_RESET} to configure Portainer."
+        echo -e "  - Go to ${F_UNERLINE}${C_CYAN}https://$domain${F_RESET} to check your BlueMap (when the server has finished building)."
+        echo -e "  - Connect to your server via ${C_CYAN}$domain${F_RESET}."
+        echo -e "  - Have fun! :)"
         ;;
 esac
