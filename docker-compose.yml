@@ -39,7 +39,7 @@ services:
     image: "ghcr.io/zekrotja/spigot-autobuild:jdk-17"
     restart: unless-stopped
     environment:
-      MC_VERSION: "1.20.1"
+      MC_VERSION: "${MINECRAFT_VERSION}"
       BUILD_CACHING: "true"
       XMS: 4G
       XMX: 8G
