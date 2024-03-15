@@ -83,6 +83,7 @@ check_domain_binding() {
 
 check_srv() {
     local domain="$1"
+    # shellcheck disable=SC2046
     set -- $(dig SRV +short "_minecraft._tcp.$domain" | cut -d ' ' -f 3,4)
     if [ -z "$1" ]; then
         echo -e "\n⚠️  No SRV entry for '_minecraft._tcp.$domain' has been detected. Defaulting to default Minecraft port (${F_ITALIC}25565${F_RESET})."
