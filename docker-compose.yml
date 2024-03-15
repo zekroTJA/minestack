@@ -47,8 +47,8 @@ services:
       PRE_START_BACKUP: "false"
       POST_START_BACKUP: "false"
     ports:
-      - "24693:25565"
-      - "25575:25575"
+      - "${MINECRAFT_PORT}:25565"
+      # - "25575:25575"
     volumes:
       - "./spigot/config:/etc/mcserver/config"
       - "./spigot/plugins:/etc/mcserver/plugins"

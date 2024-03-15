@@ -43,12 +43,14 @@ setup_rclone_config() {
 }
 
 check_domain_binding() {
-    domains=("$@")
+    local domains=("$@")
 
     set -- "$(hostname -I)"
-    myip="$1"
+    local myip="$1"
 
-    erroneous=()
+    local erroneous=()
+    local resolved
+    local domain
     for domain in "${domains[@]}"; do
         resolved=$(dig +short "$domain" | tail -n1)
         if [ "$resolved" != "$myip" ]; then
@@ -62,6 +64,7 @@ check_domain_binding() {
 
     if [ -n "${erroneous[*]}" ]; then
         echo -e "\n${F_BOLD}${C_ORANGE}warning:${F_RESET} some domains don't bind to this servers IP address ${F_ITALIC}${C_CYAN}($myip)${F_RESET}:"
+        local err
         for err in "${erroneous[@]}"; do
             echo -e "  - $err"
         done
@@ -75,6 +78,18 @@ check_domain_binding() {
         esac
     else
         echo -e "\n${C_GREEN}All domains DNS entries are correctly configured!${F_RESET}"
+    fi
+}
+
+check_srv() {
+    local domain="$1"
+    set -- $(dig SRV +short "_minecraft._tcp.$domain" | cut -d ' ' -f 3,4)
+    if [ -z "$1" ]; then
+        echo -e "\n⚠️  No SRV entry for '_minecraft._tcp.$domain' has been detected. Defaulting to default Minecraft port (${F_ITALIC}25565${F_RESET})."
+        minecraft_port="25565"
+    else
+        minecraft_port="$1"
+        echo -e "\n${C_GREEN}Detected port ${C_CYAN}${F_ITALIC}${minecraft_port}${F_RESET}${C_GREEN} from SRV entry.${F_RESET}"
     fi
 }
 
@@ -101,9 +116,11 @@ insert_backup_cronjob() {
 }
 
 select_minecraft_version() {
+    local latest_version
     latest_version=$(curl -Ls https://launchermeta.mojang.com/mc/game/version_manifest.json | jq -r '.latest.release')
 
-    if which ffzf > /dev/null 2>&1; then
+    local selected_version
+    if which fzf > /dev/null 2>&1; then
         selected_version=$(curl -Ls https://launchermeta.mojang.com/mc/game/version_manifest.json \
             | jq -r '.versions[] | select(.type == "release") | .id' \
             | fzf --border rounded --header "Please select a Minecraft version for your server:" --info hidden)
@@ -116,14 +133,14 @@ select_minecraft_version() {
         selected_version=$latest_version
     fi
 
-    if [ "$(curl -so /dev/null -w "%{response_code}" https://hub.spigotmc.org/versions/$selected_version.json)" == "200" ]; then
+    if [ "$(curl -so /dev/null -w "%{response_code}" "https://hub.spigotmc.org/versions/$selected_version.json")" == "200" ]; then
         echo -e "\n✅ ${C_GREEN}Spigot build for selected version exists!${F_RESET}"
     else
         error "No spigot build exists for the selected Minecraft version. Maybe you want to select an older version."
         exit 1
     fi
 
-    export minecraft_version=$selected_version
+    minecraft_version=$selected_version
 }
 
 error() {
@@ -161,11 +178,13 @@ if [ -z "$domain" ]; then
 fi
 
 check_domain_binding "$domain" "docker.$domain" "grafana.$domain"
+check_srv "mc.$domain"
 
 select_minecraft_version
 
 {   echo -e "ROOT_DOMAIN=$domain"
     echo -e "MINECRAFT_VERSION=$minecraft_version"
+    echo -e "MINECRAFT_PORT=$minecraft_port"
 } > ".env"
 
 echo -e "\nDo you want to enable ${F_BOLD}${C_PINK}automatic backups${F_RESET}? ${F_ITALIC}(Y/n)${F_RESET}"
