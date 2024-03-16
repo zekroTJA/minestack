@@ -45,7 +45,8 @@ setup_rclone_config() {
 check_domain_binding() {
     local domains=("$@")
 
-    set -- "$(hostname -I)"
+    # shellcheck disable=SC2046
+    set -- $(hostname -I)
     local myip="$1"
 
     local erroneous=()
