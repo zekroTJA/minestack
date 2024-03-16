@@ -180,7 +180,7 @@ if [ -z "$domain" ]; then
 fi
 
 check_domain_binding "$domain" "docker.$domain" "grafana.$domain"
-check_srv "mc.$domain"
+check_srv "$domain"
 
 select_minecraft_version
 
