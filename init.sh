@@ -39,7 +39,7 @@ setup_rclone_config() {
 
     sed -i '1s#^#secrets:\n  minecraftrclone:\n    file: rclone/rclone.conf\n\n#' docker-compose.yml
     sed -i 's#PRE_START_BACKUP: "false"#PRE_START_BACKUP: "true"#' docker-compose.yml
-    sed -i '#secrets: \[\]#secrets:\n      - source: minecraftrclone\n        target: rcloneconfig#' docker-compose.yml
+    sed -i 's#secrets: \[\]#secrets:\n      - source: minecraftrclone\n        target: rcloneconfig#' docker-compose.yml
 }
 
 check_domain_binding() {
