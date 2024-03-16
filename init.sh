@@ -16,7 +16,7 @@ F_RESET="\033[0m"
 setup_rclone_config() {
     echo -e "Following, the rclone configuration wizzard will open where you can add a new remote configuration for your backup archives."
     echo -e ""
-    echo -e "⚠️ In the wizzard, enter ${F_BOLD}${F_ITALIC}${C_PINK}'e'${F_RESET} to create a new config with the name ${F_BOLD}${F_ITALIC}${C_PINK}'minecraft'${F_RESET} (this is important!)"
+    echo -e "⚠️  In the wizzard, enter ${F_BOLD}${F_ITALIC}${C_PINK}'n'${F_RESET} to create a new config with the name ${F_BOLD}${F_ITALIC}${C_PINK}'minecraft'${F_RESET} (this is important!)"
     echo -e "After that, choose the storage type and continue the setup process."
     echo -e ""
     echo -e "If you need help, please refer to the rclone documentation:"
@@ -125,7 +125,7 @@ select_minecraft_version() {
     if which fzf > /dev/null 2>&1; then
         selected_version=$(curl -Ls https://launchermeta.mojang.com/mc/game/version_manifest.json \
             | jq -r '.versions[] | select(.type == "release") | .id' \
-            | fzf --border rounded --header "Please select a Minecraft version for your server:" --info hidden)
+            | fzf --height 10 --border rounded --header "Please select a Minecraft version for your server:" --info hidden)
     else
         echo -e "\nPlease enter the version of Minecraft you want to use ${F_ITALIC}(press enter to use latest ($latest_version))${F_RESET}:"
         read -r selected_version
